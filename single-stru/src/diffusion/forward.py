@@ -22,9 +22,8 @@ class ForwardDiffusion(nn.Module):
         if noise.shape != x0.shape or noise.device != x0.device or noise.dtype != x0.dtype:
             raise ValueError("noise must match x0's shape, device, and dtype")
         s = self.schedule
-        return s.extract(s.sqrt_alpha_bar, t, x0) * x0 + s.extract(
-            s.sqrt_one_minus_alpha_bar, t, x0
-        ) * noise
+        return s.extract(s.sqrt_alpha_bar, t, x0) * x0 + \
+               s.extract(s.sqrt_one_minus_alpha_bar, t, x0) * noise
 
     def training_loss(
         self,
