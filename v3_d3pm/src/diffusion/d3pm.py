@@ -59,10 +59,6 @@ def num_species_input(num_elements: int, mode: str) -> int:
     return num_elements + (1 if mode == "mask" else 0)
 
 
-def species_one_hot(xt: torch.Tensor, num_elements: int, mode: str) -> torch.Tensor:
-    return F.one_hot(xt, num_species_input(num_elements, mode)).to(torch.float32)
-
-
 # ---------------------------------------------------------------
 # 反向采样
 # ---------------------------------------------------------------

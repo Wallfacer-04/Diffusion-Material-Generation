@@ -6,7 +6,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from .d3pm import d3pm_loss, q_sample as q_sample_species, species_one_hot
+from .d3pm import d3pm_loss, q_sample as q_sample_species
 from .schedule import CosineSchedule
 
 
@@ -41,9 +41,8 @@ def training_loss(
 
     # 离散部分（D3PM）
     species_t = q_sample_species(species0, t, schedule.alpha_bar, num_elements, mode)
-    species_onehot = species_one_hot(species_t, num_elements, mode).to(coords0.dtype)
 
-    logits, pred_c, pred_l = model(species_onehot, coords_t, lattice_t, t)
+    logits, pred_c, pred_l = model(species_t, coords_t, lattice_t, t)
 
     ws, wc, wl = weights
     loss_s = d3pm_loss(logits, species0)

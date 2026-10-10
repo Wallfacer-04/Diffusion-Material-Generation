@@ -6,7 +6,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from .d3pm import mask_reverse_step, posterior_uniform_probs, species_one_hot
+from .d3pm import mask_reverse_step, posterior_uniform_probs
 from .schedule import CosineSchedule
 
 
@@ -59,8 +59,7 @@ def sample(
     try:
         for step in reversed(range(s.num_steps)):
             t = torch.full((num_samples,), step, dtype=torch.long, device=device)
-            onehot = species_one_hot(species, num_elements, mode).to(coords.dtype)
-            logits, pred_c, pred_l = model(onehot, coords, lattice, t)
+            logits, pred_c, pred_l = model(species, coords, lattice, t)
 
             coords = _reverse_step_continuous(coords, pred_c, t, s, generator)
             lattice = _reverse_step_continuous(lattice, pred_l, t, s, generator)
