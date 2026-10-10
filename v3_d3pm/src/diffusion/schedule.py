@@ -1,0 +1,51 @@
+"""余弦噪声调度（Nichol & Dhariwal）。
+
+同一套 β_t 同时服务两种扩散：
+
+  - 连续部分（坐标、晶格）：用 alpha_bar_t、后验均值/方差
+  - 离散部分（原子种类，D3PM）：alpha_bar_t 直接当作"保留原类别的概率"，
+    β_t 当作"跳变概率"，见 d3pm.py
+"""
+
+from __future__ import annotations
+
+import math
+
+import torch
+from torch import nn
+
+
+class CosineSchedule(nn.Module):
+    def __init__(self, num_steps: int = 200):
+        super().__init__()
+        if num_steps < 2:
+            raise ValueError("num_steps 必须 >= 2")
+        self.num_steps = num_steps
+
+        steps = torch.linspace(0, 1, num_steps + 1, dtype=torch.float64)
+        curve = torch.cos((steps + 0.008) / 1.008 * math.pi / 2) ** 2
+        curve = curve / curve[0]
+        betas = (1 - curve[1:] / curve[:-1]).clamp(max=0.999)
+        alphas = 1 - betas
+        alpha_bar = torch.cumprod(alphas, dim=0)
+        alpha_bar_prev = torch.cat((torch.ones(1, dtype=torch.float64), alpha_bar[:-1]))
+
+        buffers = {
+            "betas": betas,
+            "alphas": alphas,
+            "alpha_bar": alpha_bar,
+            "alpha_bar_prev": alpha_bar_prev,
+            "sqrt_alpha_bar": alpha_bar.sqrt(),
+            "sqrt_one_minus_alpha_bar": (1 - alpha_bar).sqrt(),
+            "posterior_variance": betas * (1 - alpha_bar_prev) / (1 - alpha_bar),
+            "posterior_mean_coef1": betas * alpha_bar_prev.sqrt() / (1 - alpha_bar),
+            "posterior_mean_coef2": (1 - alpha_bar_prev) * alphas.sqrt() / (1 - alpha_bar),
+        }
+        for name, value in buffers.items():
+            self.register_buffer(name, value.float())
+
+    @staticmethod
+    def gather(values: torch.Tensor, t: torch.Tensor, like: torch.Tensor) -> torch.Tensor:
+        """按 batch 取系数，广播到后面所有维度（对 (B,·) / (B,·,·) 都适用）。"""
+        coefficient = values[t].to(dtype=like.dtype, device=like.device)
+        return coefficient.view(-1, *([1] * (like.dim() - 1)))
